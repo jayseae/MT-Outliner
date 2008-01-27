@@ -1,30 +1,34 @@
 # ===========================================================================
-# MT-Outliner: Access information from OPML files through template tags.
-# A Plugin for Movable Type
+# Copyright 2003-2006, Everitz Consulting (everitz.com)
 #
-# Release 2.0.0
-# June 1, 2004
-#
-# http://jayseae.cxliv.org/outliner/
-# http://www.amazon.com/o/registry/2Y29QET3Y472A/
-#
-# If you find the software useful or even like it, then a simple 'thank you'
-# is always appreciated.  A reference back to me is even nicer.  If you find
-# a way to make money from the software, do what you feel is right.
-#
-# Copyright 2003-2004, Chad Everett (software@jayseae.cxliv.org)
 # Licensed under the Open Software License version 2.1
 # ===========================================================================
 package MT::Plugin::Outliner;
 
-use vars qw($VERSION);
-$VERSION = '2.0.0';
-
+use base qw(MT::Plugin);
 use strict;
 
+use MT;
 use MT::Template::Context;
 use MT::Util qw(format_ts);
 use XML::Twig;
+
+# version
+use vars qw($VERSION);
+$VERSION = '2.0.1';
+
+my $Outliner;
+my $about = {
+  name => 'MT-Outliner',
+  description => 'Access information from OPML files through template tags.',
+  author_name => 'Everitz Consulting',
+  author_link => 'http://www.everitz.com/',
+  plugin_link => 'http://www.everitz.com/sol/mt-outliner/index.html',
+  doc_link => 'http://www.everitz.com/sol/mt-outliner/index.html',
+  version => $VERSION
+}; 
+$Outliner = MT::Plugin::Outliner->new($about);
+MT->add_plugin($Outliner);
 
 MT::Template::Context->add_container_tag(Outliner => \&Outliner);
 MT::Template::Context->add_tag(OutlinerBloglines => \&ReturnValue);
@@ -74,12 +78,10 @@ sub Outliner {
   my $url;
   if ($args->{bloglines}) {
     $ctx->stash('outlinerbloglines', $args->{bloglines});
-    $ctx->stash('bloglinesfunction', 1);
     $url = "http://www.bloglines.com/export?id=$args->{bloglines}";
     $dat = ol_load_link ($url);
   } else {
     $ctx->stash('outlinerbloglines', $notfound);
-    $ctx->stash('bloglinesfunction', 0);
     if ($args->{opmllink}) {
       $url = $args->{opmllink};
       $dat = ol_load_link ($url);
@@ -152,9 +154,6 @@ sub OutlinerFolders {
     TwigHandlers => {
       'body' => sub {
         my @folders = $_->children('outline');
-        if ($ctx->stash('bloglinesfunction')) {
-          @folders = $_->first_child('outline')->children('outline');
-        }
         foreach my $f (@folders) {
           next unless $f->has_child('outline');
           my $folder = $f->{'att'}->{'text'} || $f->{'att'}->{'title'};
