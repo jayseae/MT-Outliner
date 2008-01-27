@@ -1,10 +1,10 @@
 MT-Outliner: Access information from OPML files through template tags.
 A Plugin for Movable Type
 
-Release 1.3.0
-February 21, 2004
+Release 2.0.0
+June 1, 2004
 
-http://www.cxliv.org/jayseae/outliner/
+http://jayseae.cxliv.org/outliner/
 http://www.amazon.com/o/registry/2Y29QET3Y472A/
 
 If you find the software useful or even like it, then a simple 'thank you'
@@ -21,6 +21,14 @@ information contained within by using MT template tags.
 
 *** -------------------------------------------------------------------- ***
 
+Upgrade notes and warnings:
+
+Version 2.0.0 uses a new architecture.  It requires the use of XML::Twig, which
+in turns requires XML::Parser.  If you are unable to use XML::Twig, you can
+still make use of version 1.3.0.
+
+*** -------------------------------------------------------------------- ***
+
 Installation:
 
 To install, place the Outliner.pl file in your Movable Type "plugins"
@@ -28,9 +36,33 @@ directory.  If you do not have a Movable Type plugins directory, create one,
 then put the Outliner.pl file in it.  Refer to the Movable Type documentation
 for more information regarding plugins.
 
+  MT_DIR/plugins/Outliner.pl
+
 The functionality in MT-Outliner requires the use of the LWP::UserAgent and 
-the HTTP::Request modules, so you'll need to make sure they are installed as
-well.  These modules are typically installed already.
+the HTTP::Request modules, so you'll need to make sure they are installed on
+your web host.
+
+The functionality in MT-Outliner version 2 requires the use of the XML::Twig
+module, so you'll need to make sure that is installed too.  If it's in your
+EXTLIB, that is just fine - so long as the plugin can get to it, it will work.
+
+  http://search.cpan.org/src/MIROD/XML-Twig-3.15/Twig.pm
+
+If you've never installed a module in EXTLIB, here's how:
+
+Get a copy of each module needed.  The first part of the package name (in
+this case, XML), indicates the directory.  Create an XML directory under
+the extlib directory in your primary MT directory.
+
+The second part of the package name is the file name.  Save the module as
+Twig.pm in the XML directory that you just created, so that the path looks
+like:
+
+  MT_DIR/extlib/XML/Twig.pm
+
+The XML::Twig module requires the XML::Parser module.  If you do not have 
+this module installed, you'll need to install it (or have your web host do it 
+for you).  This module does not support loading through the use of EXTLIB.  
 
 *** -------------------------------------------------------------------- ***
 
@@ -38,10 +70,10 @@ Loading an OPML File for Processing:
 
   <MTOutliner>
 
-This tag offers two attributes for retrieving data in OPML format.
+This tag offers three attributes for retrieving data in OPML format.
 
 The first attribute makes use of your Bloglines user ID or email address to
-retrieve your subscriptions from the Export function of Bloglines.  If you
+retrieve your subscriptions from the Export function of Bloglines.  If you 
 choose this option, make sure that all subscriptions you'd like to see are
 made public, or else your OPML file may be incomplete.  To retrieve an export
 from Bloglines, simply add the bloglines attribute to the tag:
@@ -110,38 +142,43 @@ your document.
 
 The MTOutlinerFolders tag accepts two attributes.
 
-The first is to indicate if you want to include "unfiled" entries.  Unfiled
-entries are those entries that are not found within a particular folder.  By
-default, unfiled entries are not included in any further output.  To enable
-the display of these entries, add the unfiled attribute to this tag:
+The "unfiled" attribute has been deprecated and is no longer supported.  In
+order to show entries that are not filed in a top-level folder, do not use
+the MTOutlinerFolders container.
 
-  <MTOutlinerFolders unfiled="1">
-
-The second tag is to specify a folder or a list of folders to include in the
-output.  By default, all folders are included.  If you'd like to limit the
-folders, specify them by using this attribute:
+Using the "folders" attribute, you can specify a folder or a list of folders
+to include in the output.  By default, all folders are included.  If you'd
+like to limit the folders, specify them by using this attribute:
 
   <MTOutlinerFolders folders="Folder 1:Folder 2:Folder 3">
 
 Separate multiple folders with colons.  You can use the folders attribute to
 select folders and also use the unfiled attribute to include the top-level
-entries that are not filed in folders.
+entries that are not filed in folders.  You should not that the strings that
+you specify with this attribute are not exact.  If a folder contains any part
+of that value, it will be included.  For instance, if you use something like:
+
+  <MTOutlinerFolders folders="Folder">
+
+Then the output will include the contents of any folder that includes the word
+'folder' in it's name (New Folder, My Folder, Your Folder, etc).
 
 Within this container, there are several conditional tags to control the data
 that is output:
 
   <MTOutlinerFolderIfItems> = Display if the current folder contains items.
   <MTOutlinerFolderIfNoItems> = Display if the current folder contains no items.
-  <MTOutlinerFolderFiled> = Display if the current items are filed (in a folder).
-  <MTOutlinerFolderUnfiled> = Display if the current items are unfiled.
+  <MTOutlinerFolderIfSubs> = Display if the current folder contains folders.
+  <MTOutlinerFolderIfNoSubs> = Display if the current folder contains no folders.
 
-While this plugin ought to work with subfolders (folders within folders),
-that configuration hasn't been tested.  Your results with subfolders may vary.
+The <MTOutlinerFolderFiled> and <MTOutlinerFolderUnfiled> containers have been
+deprecated, and should no longer be used.
 
 Tags to Retrieve Folder-level Data:
 
   <$MTOutlinerFolderText$> = The text value of the folder (title used if no text).
   <$MTOutlinerFolderItemCount$> = The count of items within the folder.
+  <$MTOutlinerFolderSubsCount$> = The count of folders within the folder.
 
 *** -------------------------------------------------------------------- ***
 
@@ -181,6 +218,90 @@ Tags to Retrieve Item-level Data:
 
 *** -------------------------------------------------------------------- ***
 
+Recursive Data:
+
+Version 2.0.0 of MT-Outliner brings with it a new architecture.  This architecture
+allows for multiple levels of folders.  To use these levels, there is another
+tag.  This tag repeats the markup contained within the MTOutliner block, but it
+does so for the next level down (and the next level, and the next level).
+
+  <$MTOutlinerRecurse$>
+
+To use this tag, simply place it after the text you'd like to reproduce on each
+loop through the data.  For instance, to create a simple list of folders, with
+the items indented in an additional list, you might use something like:
+
+  <MTOutliner bloglines="userid">
+    <ul>
+      <MTOutlinerFolders>
+      <li><$MTOutlinerFolderText$>
+        <ul>
+          <MTOutlinerItems>
+          <li><a href="<$MTOutlinerItemHTML$>"><$MTOutlinerItemText$></a></li>
+          </MTOutlinerItems>
+        </ul>
+      </MTOutlinerFolders>
+    </ul>
+  </MTOutliner>
+
+This will produce results that look like this:
+
+  Folder 1
+    Item 1
+    Item 2
+  Folder 2
+    Item 3
+    Item 4
+  Folder 3
+    Item 5
+
+To repeat this for each level of data, make one simple change to the markup:
+
+  <MTOutliner bloglines="userid">
+    <ul>
+      <MTOutlinerFolders>
+      <li><$MTOutlinerFolderText$>
+        <ul>
+          <MTOutlinerItems>
+          <li><a href="<$MTOutlinerItemHTML$>"><$MTOutlinerItemText$></a></li>
+          </MTOutlinerItems>
+          <$MTOutlinerRecurse$>  <--- This is the change!
+        </ul>
+      </MTOutlinerFolders>
+    </ul>
+  </MTOutliner>
+
+And when you process OPML with multiple levels, you'll instead see something
+like this:
+
+  Folder 1
+    Item 1
+    Item 2
+    Folder 1a
+      Item 6a
+      Item 7a
+      Folder 1b
+        Item 9b
+  Folder 2
+    Item 3
+    Item 4
+  Folder 3
+    Item 5
+    Folder 3a
+      Item 8a
+
+You'll notice that in this example the folders show up at the end of the item
+list for the enclosing folder.  This is because that's where the tag was placed
+in the markup.  You can experiment with moving the tag around, but it seems to 
+work most reliably at the end.  If you place it before other sections, you
+may not get the results you want.
+
+This is because certain values, like the items within the folder, aren't built
+until the end of the loop - so if you process recursive levels first, those
+items will take over, and the top level items won't get built as expected.
+
+*** -------------------------------------------------------------------- ***
+
 You can use this plugin to create a simple blogroll from your OPML file:
 
   <MTOutliner opmllink="http://example.com/path/to/file/opml">
@@ -197,16 +318,17 @@ attributes, you can customize your blogroll in most any way you can imagine!
 
 I've tested this plugin with the Bloglines export, some Manila-generated OPML
 files, a file I believe came from SharpReader's export function, an OPML file
-from NetNewsWire and even the OPML file generated by Feedster's search.  If
-you come across any problems in these formats, or if you have another format
-that doesn't seem to be working, please send me the information so I can fix
-the plugin or add support for the format you use.
+from NetNewsWire, the Newsgator online export and even the OPML file generated
+by Feedster's search.  If you come across any problems in these formats, or if
+you have another format that doesn't seem to be working, please send me the
+information so I can fix the plugin or add support for the format you use.
 
 *** -------------------------------------------------------------------- ***
 
 Changelog:
-1.4.0
-  - Changed month handling code to better syntax.
+2.0.0
+  - Rewrite to parse XML and allow recursive folders.
+  - June 1, 2004
 1.3.0
   - Fixed problem with files using both carriage returns and line feeds.
   - February 21, 2004
